@@ -1,0 +1,41 @@
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #0b0b0e;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #ffffff;
+    user-select: none;
+}
+
+#ui-overlay {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+h1 {
+    margin: 0 0 5px 0;
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+    color: #00ffcc;
+    text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+}
+
+p {
+    margin: 0 0 15px 0;
+    font-size: 0.9rem;
+    color: #a0a0c0;
+}
+
+#score-board {
+    font-size: 1.2rem;
+    font-weight: bold;
+    background: rgba(15, 15, 25, 0.7);
+    padding: 8px 15px;
+    border-radius: 6px;
+    border: 1px solid #2a2a40;
+    display: inline-block;
+}
