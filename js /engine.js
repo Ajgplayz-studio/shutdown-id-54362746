@@ -2,14 +2,13 @@ import * as THREE from 'three';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 
-export class GameEngine {
+export class SandboxEngine {
     constructor() {
         this.container = document.body;
-        this.score = 0;
-        this.targets = [];
-        this.projectiles = [];
+        this.spawnedObjects = [];
+        this.menuOpen = false;
         
-        // Movement tracking for Desktop Screen Mode
+        // Movement state for PC Desktop mode
         this.moveState = { forward: false, backward: false, left: false, right: false };
         this.euler = new THREE.Euler(0, 0, 0, 'YXZ');
         this.isLocked = false;
@@ -22,11 +21,11 @@ export class GameEngine {
 
     initScene() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x050508);
-        this.scene.fog = new THREE.FogExp2(0x050508, 0.03);
+        this.scene.background = new THREE.Color(0x080810);
+        this.scene.fog = new THREE.FogExp2(0x080810, 0.025);
 
         this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
-        this.camera.position.set(0, 1.6, 3);
+        this.camera.position.set(0, 1.6, 4);
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -34,68 +33,51 @@ export class GameEngine {
         this.renderer.xr.enabled = true;
         this.container.appendChild(this.renderer.domElement);
 
-        // WebXR VR Button
-        const vrButton = VRButton.createButton(this.renderer);
-        document.body.appendChild(vrButton);
+        // WebXR VR Button integration
+        document.body.appendChild(VRButton.createButton(this.renderer));
 
-        // Listen for entering/exiting WebXR VR session to update UI info
         this.renderer.xr.addEventListener('sessionstart', () => {
-            document.getElementById('mode-instruction').innerText = "VR Mode Active";
+            document.getElementById('instructions').innerText = "VR Mode Active. Use controllers to interact.";
         });
         this.renderer.xr.addEventListener('sessionend', () => {
-            document.getElementById('mode-instruction').innerText = "Screen Mode: Click screen to lock mouse. WASD to move.";
+            document.getElementById('instructions').innerText = "Click screen to capture mouse. WASD to move. Press Q for Spawner Menu.";
         });
     }
 
     initEnvironment() {
-        const ambientLight = new THREE.AmbientLight(0x222233, 1.5);
+        const ambientLight = new THREE.AmbientLight(0x333344, 1.5);
         this.scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0x00ffcc, 2);
-        directionalLight.position.set(5, 10, 5);
-        this.scene.add(directionalLight);
+        const dirLight = new THREE.DirectionalLight(0x00ffcc, 1.8);
+        dirLight.position.set(10, 20, 10);
+        this.scene.add(dirLight);
 
-        const gridHelper = new THREE.GridHelper(40, 40, 0x00ffcc, 0x1f1f2e);
-        this.scene.add(gridHelper);
+        // Grid arena floor
+        const grid = new THREE.GridHelper(50, 50, 0x00ffcc, 0x1a1a2e);
+        this.scene.add(grid);
 
-        const boxGeo = new THREE.BoxGeometry(1.5, 3, 1.5);
-        const boxMat = new THREE.MeshStandardMaterial({ color: 0x12121c, roughness: 0.4 });
+        // Arena boundary walls / structural columns
+        const colGeo = new THREE.BoxGeometry(2, 6, 2);
+        const colMat = new THREE.MeshStandardMaterial({ color: 0x141420, roughness: 0.3 });
         
-        for (let i = 0; i < 12; i++) {
-            const obstacle = new THREE.Mesh(boxGeo, boxMat);
-            const angle = (i / 12) * Math.PI * 2;
-            const radius = 8 + Math.random() * 4;
-            obstacle.position.set(Math.cos(angle) * radius, 1.5, Math.sin(angle) * radius);
-            this.scene.add(obstacle);
+        for (let i = 0; i < 8; i++) {
+            const pillar = new THREE.Mesh(colGeo, colMat);
+            const angle = (i / 8) * Math.PI * 2;
+            pillar.position.set(Math.cos(angle) * 15, 3, Math.sin(angle) * 15);
+            this.scene.add(pillar);
         }
     }
 
     initControllers() {
-        // VR Controllers
+        // VR Controllers configuration
         this.controller1 = this.renderer.xr.getController(0);
-        this.controller1.addEventListener('selectstart', () => this.onVRShoot(this.controller1));
+        this.controller1.addEventListener('selectstart', () => this.spawnObjectInFront('box'));
         this.scene.add(this.controller1);
-
-        this.controller2 = this.renderer.xr.getController(1);
-        this.controller2.addEventListener('selectstart', () => this.onVRShoot(this.controller2));
-        this.scene.add(this.controller2);
 
         const controllerModelFactory = new XRControllerModelFactory();
         this.controllerGrip1 = this.renderer.xr.getControllerGrip(0);
         this.controllerGrip1.add(controllerModelFactory.createControllerModel(this.controllerGrip1));
         this.scene.add(this.controllerGrip1);
-
-        this.controllerGrip2 = this.renderer.xr.getControllerGrip(1);
-        this.controllerGrip2.add(controllerModelFactory.createControllerModel(this.controllerGrip2));
-        this.scene.add(this.controllerGrip2);
-
-        // Visual lasers for VR controllers
-        const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-1)]);
-        const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffcc });
-        const line = new THREE.Line(lineGeo, lineMat);
-        line.scale.z = 5;
-        this.controller1.add(line.clone());
-        this.controller2.add(line.clone());
     }
 
     initListeners() {
@@ -105,46 +87,53 @@ export class GameEngine {
             this.renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // --- SCREEN MODE CONTROLS (Desktop Mouse & Keyboard) ---
-        this.renderer.domElement.addEventListener('click', () => {
-            if (!this.renderer.xr.isPresenting) {
-                this.renderer.domElement.requestPointerLock();
+        // Pointer lock setup for PC desktop controls
+        const canvas = this.renderer.domElement;
+        canvas.addEventListener('click', () => {
+            if (!this.renderer.xr.isPresenting && !this.menuOpen) {
+                canvas.requestPointerLock();
             }
         });
 
         document.addEventListener('pointerlockchange', () => {
-            this.isLocked = (document.pointerLockElement === this.renderer.domElement);
+            this.isLocked = (document.pointerLockElement === canvas);
         });
 
-        document.addEventListener('mousemove', (event) => {
+        document.addEventListener('mousemove', (e) => {
             if (!this.isLocked || this.renderer.xr.isPresenting) return;
 
-            const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-            const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
-
             this.euler.setFromQuaternion(this.camera.quaternion);
-            this.euler.y -= movementX * 0.002;
-            this.euler.x -= movementY * 0.002;
+            this.euler.y -= e.movementX * 0.002;
+            this.euler.x -= e.movementY * 0.002;
             this.euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.euler.x));
             this.camera.quaternion.setFromEuler(this.euler);
         });
 
-        document.addEventListener('keydown', (e) => this.onKeyChange(e, true));
-        document.addEventListener('keyup', (e) => this.onKeyChange(e, false));
+        document.addEventListener('keydown', (e) => this.handleKeys(e, true));
+        document.addEventListener('keyup', (e) => this.handleKeys(e, false));
 
-        // Screen mode click to shoot
-        window.addEventListener('mousedown', (e) => {
-            if (this.isLocked && !this.renderer.xr.isPresenting && e.button === 0) {
-                const dir = new THREE.Vector3();
-                this.camera.getWorldDirection(dir);
-                this.spawnProjectile(this.camera.position, dir);
-            }
+        // Spawner Menu UI button hooks
+        document.querySelectorAll('.spawn-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const type = e.target.getAttribute('data-type');
+                this.spawnObjectInFront(type);
+                this.toggleSpawnerMenu(false);
+            });
         });
     }
 
-    onKeyChange(event, isDown) {
+    handleKeys(e, isDown) {
         if (this.renderer.xr.isPresenting) return;
-        switch (event.code) {
+
+        // Toggle Spawner Menu with 'Q'
+        if (e.code === 'KeyQ' && isDown) {
+            this.toggleSpawnerMenu(!this.menuOpen);
+            return;
+        }
+
+        if (this.menuOpen) return;
+
+        switch (e.code) {
             case 'KeyW': this.moveState.forward = isDown; break;
             case 'KeyS': this.moveState.backward = isDown; break;
             case 'KeyA': this.moveState.left = isDown; break;
@@ -152,13 +141,24 @@ export class GameEngine {
         }
     }
 
-    updateDesktopMovement() {
-        if (this.renderer.xr.isPresenting) return;
+    toggleSpawnerMenu(open) {
+        this.menuOpen = open;
+        const menu = document.getElementById('spawner-menu');
+        if (open) {
+            menu.classList.remove('hidden');
+            document.exitPointerLock();
+        } else {
+            menu.classList.add('hidden');
+        }
+    }
 
-        const speed = 0.05;
+    updateDesktopMovement() {
+        if (this.renderer.xr.isPresenting || this.menuOpen) return;
+
+        const speed = 0.07;
         const dir = new THREE.Vector3();
         this.camera.getWorldDirection(dir);
-        dir.y = 0; // Keep movement locked to ground plane
+        dir.y = 0;
         dir.normalize();
 
         const sideDir = new THREE.Vector3(-dir.z, 0, dir.x);
@@ -167,93 +167,61 @@ export class GameEngine {
         if (this.moveState.backward) this.camera.position.addScaledVector(dir, -speed);
         if (this.moveState.left) this.camera.position.addScaledVector(sideDir, speed);
         if (this.moveState.right) this.camera.position.addScaledVector(sideDir, -speed);
+
+        this.camera.position.y = 1.6; // Keep head height fixed
+    }
+
+    spawnObjectInFront(type) {
+        let geo, mat;
+        const spawnPos = new THREE.Vector3();
+        const spawnDir = new THREE.Vector3();
         
-        // Lock player height
-        this.camera.position.y = 1.6;
-    }
+        this.camera.getWorldDirection(spawnDir);
+        spawnPos.copy(this.camera.position).addScaledVector(spawnDir, 3); // 3 units ahead
 
-    onVRShoot(controller) {
-        const tempMatrix = new THREE.Matrix4();
-        tempMatrix.identity().extractRotation(controller.matrixWorld);
+        switch(type) {
+            case 'box':
+                geo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+                mat = new THREE.MeshStandardMaterial({ color: 0xff3366, roughness: 0.3 });
+                break;
+            case 'sphere':
+                geo = new THREE.SphereGeometry(0.5, 16, 16);
+                mat = new THREE.MeshStandardMaterial({ color: 0x33ccff, roughness: 0.2 });
+                break;
+            case 'barrel':
+                geo = new THREE.CylinderGeometry(0.4, 0.4, 1.2, 16);
+                mat = new THREE.MeshStandardMaterial({ color: 0xffaa00, roughness: 0.4 });
+                break;
+            case 'dummy':
+                geo = new THREE.CapsuleGeometry(0.3, 1, 4, 8);
+                mat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.5 });
+                break;
+            default:
+                geo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+                mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        }
 
-        const position = new THREE.Vector3().setFromMatrixPosition(controller.matrixWorld);
-        const direction = new THREE.Vector3(0, 0, -1).applyMatrix4(tempMatrix);
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.copy(spawnPos);
+        
+        // Add random slight spin or drop physics simulation placeholder
+        mesh.userData = { velocity: new THREE.Vector3(0, -0.02, 0) };
 
-        this.spawnProjectile(position, direction);
-    }
-
-    spawnProjectile(origin, direction) {
-        const geo = new THREE.SphereGeometry(0.06, 8, 8);
-        const mat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
-        const bullet = new THREE.Mesh(geo, mat);
-
-        bullet.position.copy(origin);
-        bullet.userData = {
-            velocity: direction.multiplyScalar(0.7),
-            life: 120
-        };
-
-        this.scene.add(bullet);
-        this.projectiles.push(bullet);
-    }
-
-    spawnTarget() {
-        const geo = new THREE.IcosahedronGeometry(0.4, 0);
-        const mat = new THREE.MeshStandardMaterial({ 
-            color: 0x00ffcc, 
-            emissive: 0x004433,
-            roughness: 0.2 
-        });
-        const target = new THREE.Mesh(geo, mat);
-
-        const u = Math.random();
-        const v = Math.random();
-        const theta = u * 2.0 * Math.PI;
-        const phi = Math.acos(2.0 * v - 1.0);
-        const r = 6 + Math.random() * 4;
-
-        target.position.set(
-            r * Math.sin(phi) * Math.cos(theta),
-            Math.max(0.5, r * Math.sin(phi) * Math.sin(theta)),
-            r * Math.cos(phi)
-        );
-
-        this.scene.add(target);
-        this.targets.push(target);
+        this.scene.add(mesh);
+        this.spawnedObjects.push(mesh);
     }
 
     updateGame() {
         this.updateDesktopMovement();
 
-        // Update Projectiles & Check Collisions
-        for (let i = this.projectiles.length - 1; i >= 0; i--) {
-            const p = this.projectiles[i];
-            p.position.add(p.userData.velocity);
-            p.userData.life--;
-
-            for (let j = this.targets.length - 1; j >= 0; j--) {
-                const t = this.targets[j];
-                if (p.position.distanceTo(t.position) < 0.6) {
-                    this.scene.remove(t);
-                    this.targets.splice(j, 1);
-                    
-                    this.scene.remove(p);
-                    this.projectiles.splice(i, 1);
-
-                    this.score += 100;
-                    document.getElementById('score').innerText = this.score;
-                    break;
-                }
+        // Simple physics tick for spawned objects falling down to floor
+        for (let i = 0; i < this.spawnedObjects.length; i++) {
+            const obj = this.spawnedObjects[i];
+            if (obj.position.y > 0.5) {
+                obj.position.add(obj.userData.velocity);
+                obj.rotation.x += 0.01;
+                obj.rotation.y += 0.01;
             }
-
-            if (p.userData.life <= 0 && this.projectiles.includes(p)) {
-                this.scene.remove(p);
-                this.projectiles.splice(i, 1);
-            }
-        }
-
-        if (this.targets.length < 5 && Math.random() < 0.03) {
-            this.spawnTarget();
         }
     }
 
