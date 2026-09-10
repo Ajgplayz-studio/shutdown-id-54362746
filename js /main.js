@@ -1,6 +1,6 @@
-import { GameEngine } from './engine.js';
+import { SandboxEngine } from './engine.js';
 
 window.addEventListener('DOMContentLoaded', () => {
-    const game = new GameEngine();
-    game.start();
+    const sandbox = new SandboxEngine();
+    sandbox.start();
 });
