@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Downshot VR / Screen Mode</title>
+    <title>Downshot Web Sandbox</title>
     <link rel="stylesheet" href="style.css">
     <script type="importmap">
         {
@@ -15,10 +15,26 @@
     </script>
 </head>
 <body>
+    <!-- Crosshair for Desktop Mode -->
+    <div id="crosshair">+</div>
+
+    <!-- UI Overlays & Spawner Gun Menu -->
     <div id="ui-overlay">
-        <h1>DOWNSHOT</h1>
-        <p id="mode-instruction">Screen Mode: Click to lock mouse & look around. WASD to move.</p>
-        <div id="score-board">Score: <span id="score">0</span></div>
+        <h1>DOWNSHOT <span style="font-size: 0.8rem; color:#00ffcc;">SANDBOX</span></h1>
+        <p id="instructions">Click screen to capture mouse. WASD to move. Press <b>Q</b> to open Spawner Gun Menu.</p>
+    </div>
+
+    <!-- Spawner Gun Category Menu -->
+    <div id="spawner-menu" class="hidden">
+        <h2>SPAWNER GUN</h2>
+        <p>Select an item to spawn in front of you:</p>
+        <div class="spawner-grid">
+            <button class="spawn-btn" data-type="box">Spawn Box Prop</button>
+            <button class="spawn-btn" data-type="sphere">Spawn Sphere</button>
+            <button class="spawn-btn" data-type="barrel">Spawn Exploding Barrel</button>
+            <button class="spawn-btn" data-type="dummy">Spawn Target Dummy</button>
+        </div>
+        <p style="font-size: 0.8rem; margin-top: 15px; color: #888;">Press Q again to close menu.</p>
     </div>
 
     <script type="module" src="js/main.js"></script>
