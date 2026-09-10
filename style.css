@@ -8,6 +8,17 @@ body {
     user-select: none;
 }
 
+#crosshair {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.5rem;
+    color: rgba(0, 255, 204, 0.7);
+    pointer-events: none;
+    z-index: 5;
+}
+
 #ui-overlay {
     position: absolute;
     top: 20px;
@@ -18,24 +29,64 @@ body {
 
 h1 {
     margin: 0 0 5px 0;
-    font-size: 1.8rem;
+    font-size: 1.6rem;
     letter-spacing: 2px;
     color: #00ffcc;
-    text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+    text-shadow: 0 0 10px rgba(0, 255, 204, 0.4);
 }
 
 p {
-    margin: 0 0 15px 0;
-    font-size: 0.9rem;
+    margin: 0;
+    font-size: 0.85rem;
     color: #a0a0c0;
 }
 
-#score-board {
-    font-size: 1.2rem;
-    font-weight: bold;
-    background: rgba(15, 15, 25, 0.7);
-    padding: 8px 15px;
-    border-radius: 6px;
+/* Spawner Menu Styling */
+#spawner-menu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(15, 15, 25, 0.9);
+    border: 2px solid #00ffcc;
+    border-radius: 10px;
+    padding: 25px;
+    width: 350px;
+    z-index: 100;
+    box-shadow: 0 0 30px rgba(0, 255, 204, 0.2);
+    text-align: center;
+}
+
+#spawner-menu.hidden {
+    display: none;
+}
+
+#spawner-menu h2 {
+    margin-top: 0;
+    color: #00ffcc;
+    letter-spacing: 1px;
+}
+
+.spawner-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.spawn-btn {
+    background: #1a1a2e;
+    color: #ffffff;
     border: 1px solid #2a2a40;
-    display: inline-block;
+    padding: 10px;
+    font-size: 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.spawn-btn:hover {
+    background: #00ffcc;
+    color: #0b0b0e;
+    font-weight: bold;
 }
